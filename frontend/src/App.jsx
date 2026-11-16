@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
-import { Bug, CheckCircle2, Circle, ClipboardList, LogOut, Plus, Search, KanbanSquare } from 'lucide-react';
+import { Bug, CheckCircle2, Circle, ClipboardList, LogOut, Plus, Search, KanbanSquare, Users } from 'lucide-react';
 import api from './api';
 
 const statuses = ['backlog', 'todo', 'in_progress', 'review', 'done'];
@@ -82,6 +82,91 @@ function IssueModal({ issue, projectId, onClose, onSaved }) {
   </div></div>;
 }
 
+
+function TeamMembers({ projectId, user, onBack }) {
+  const [members, setMembers] = useState([]);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('developer');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  async function loadMembers() {
+    setLoading(true); setError('');
+    try {
+      const response = await api.get(`/api/projects/${projectId}/members`);
+      setMembers(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Unable to load project members');
+    } finally { setLoading(false); }
+  }
+  useEffect(() => { loadMembers(); }, [projectId]);
+
+  const ownMember = members.find(m => m.user_id === user.id);
+  const canManage = user.global_role === 'admin' || ownMember?.role === 'admin';
+
+  async function addMember(e) {
+    e.preventDefault(); setSaving(true); setError(''); setMessage('');
+    try {
+      await api.post(`/api/projects/${projectId}/members`, { email: email.trim(), role });
+      setEmail(''); setRole('developer');
+      setMessage('Member added or role updated successfully.');
+      await loadMembers();
+    } catch (err) { setError(err.response?.data?.detail || 'Unable to add member'); }
+    finally { setSaving(false); }
+  }
+  async function changeRole(member, nextRole) {
+    setError(''); setMessage('');
+    try {
+      await api.post(`/api/projects/${projectId}/members`, { email: member.user.email, role: nextRole });
+      setMessage(`Updated ${member.user.name}'s role.`); await loadMembers();
+    } catch (err) { setError(err.response?.data?.detail || 'Unable to update role'); }
+  }
+  async function removeMember(member) {
+    if (!window.confirm(`Remove ${member.user.name} from this project?`)) return;
+    setError(''); setMessage('');
+    try {
+      await api.delete(`/api/projects/${projectId}/members/${member.user_id}`);
+      setMessage(`${member.user.name} was removed.`); await loadMembers();
+    } catch (err) { setError(err.response?.data?.detail || 'Unable to remove member'); }
+  }
+
+  return <section className="members-panel">
+    <div className="members-heading">
+      <div><h2><Users size={20}/> Team Members</h2><p className="muted">People who have access to this project.</p></div>
+      <button className="secondary-btn" onClick={loadMembers}>Refresh</button>
+    </div>
+    {error && <p className="error">{error}</p>}
+    {message && <p className="success-message">{message}</p>}
+    {loading ? <p className="muted">Loading members...</p> : <>
+      <div className="member-list">
+        {members.map(m => <div className="member-row" key={m.id}>
+          <div className="member-avatar">{m.user.name?.[0]?.toUpperCase() || '?'}</div>
+          <div className="member-identity"><strong>{m.user.name}</strong><span>{m.user.email}</span></div>
+          {canManage
+            ? <select aria-label={`Role for ${m.user.name}`} value={m.role} onChange={e=>changeRole(m,e.target.value)}>
+                <option value="admin">Admin</option><option value="developer">Developer</option><option value="viewer">Viewer</option>
+              </select>
+            : <span className="role-pill">{m.role}</span>}
+          {canManage && <button className="remove-member" onClick={()=>removeMember(m)}>Remove</button>}
+        </div>)}
+        {!members.length && <p className="muted">No project members found.</p>}
+      </div>
+      {canManage ? <form className="add-member-form" onSubmit={addMember}>
+        <h3>Add team member</h3>
+        <div className="add-member-fields">
+          <input type="email" required placeholder="Registered user's email" value={email} onChange={e=>setEmail(e.target.value)}/>
+          <select value={role} onChange={e=>setRole(e.target.value)}><option value="developer">Developer</option><option value="viewer">Viewer</option><option value="admin">Admin</option></select>
+          <button className="primary" disabled={saving}>{saving ? 'Adding...' : 'Add member'}</button>
+        </div>
+        <p className="muted form-hint">The user must already have an account. Adding an existing member updates their role.</p>
+      </form> : <p className="muted">Only project admins can manage members.</p>}
+    </>}
+    <div className="members-footer"><button className="secondary-btn" onClick={onBack}>Back to board</button></div>
+  </section>;
+}
+
 function Dashboard({ user, onLogout }) {
   const [projects,setProjects]=useState([]), [projectId,setProjectId]=useState('');
   const [issues,setIssues]=useState([]), [query,setQuery]=useState('');
@@ -100,14 +185,16 @@ function Dashboard({ user, onLogout }) {
       {projects.map(p=><button key={p.id} className={`project-link ${String(p.id)===String(projectId)?'chosen':''}`} onClick={()=>setProjectId(String(p.id))}><span className="project-dot">{p.key.slice(0,1)}</span>{p.name}</button>)}
       <div className="sidebar-user"><div className="avatar">{user.name?.[0]?.toUpperCase()}</div><div><b>{user.name}</b><small>{user.email}</small></div><button title="Sign out" onClick={onLogout}><LogOut size={17}/></button></div>
     </aside>
-    <main className="main"><header className="topbar"><div><span className="crumb">Workspace / Projects / </span><b>{selected?.name || 'Select a project'}</b></div><div className="top-actions"><div className="search"><Search size={16}/><input placeholder="Search issues..." value={query} onChange={e=>setQuery(e.target.value)}/></div><button className="primary" disabled={!projectId} onClick={()=>setModal({})}><Plus size={16}/> Create issue</button></div></header>
-      <div className="content"><div className="page-title"><div><h1>{selected?.name || 'Your workspace'}</h1><p className="muted">{selected?.description || 'Track work and keep your team aligned.'}</p></div><div className="view-switch"><button className={view==='board'?'selected':''} onClick={()=>setView('board')}>Board</button><button className={view==='list'?'selected':''} onClick={()=>setView('list')}>List</button></div></div>
+    <main className="main"><header className="topbar"><div><span className="crumb">Workspace / Projects / </span><b>{selected?.name || 'Select a project'}</b></div><div className="top-actions">{view!=='members' && <><div className="search"><Search size={16}/><input placeholder="Search issues..." value={query} onChange={e=>setQuery(e.target.value)}/></div><button className="primary" disabled={!projectId} onClick={()=>setModal({})}><Plus size={16}/> Create issue</button></>}</div></header>
+      <div className="content"><div className="page-title"><div><h1>{selected?.name || 'Your workspace'}</h1><p className="muted">{selected?.description || 'Track work and keep your team aligned.'}</p></div><div className="view-switch"><button className={view==='board'?'selected':''} onClick={()=>setView('board')}>Board</button><button className={view==='list'?'selected':''} onClick={()=>setView('list')}>List</button><button className={view==='members'?'selected':''} disabled={!projectId} onClick={()=>setView('members')}><Users size={14}/> Members</button></div></div>
         {error && <p className="error">{error}</p>}
+        {view==='members' && projectId ? <TeamMembers key={projectId} projectId={Number(projectId)} user={user} onBack={()=>setView('board')}/> : <>
         <div className="stats"><div className="stat"><span>Total issues</span><b>{counts.total}</b><ClipboardList/></div><div className="stat"><span>Open</span><b>{counts.open}</b><Circle/></div><div className="stat"><span>Completed</span><b>{counts.done}</b><CheckCircle2/></div><div className="stat"><span>Bugs</span><b>{counts.bugs}</b><Bug/></div></div>
         {!projects.length ? <div className="welcome"><h2>Start your first project</h2><p>Create a project to start tracking bugs, tasks and features.</p><button className="primary" onClick={()=>setNewProject(true)}>Create project</button></div> :
         view==='board' ? <DndContext onDragEnd={moveIssue}><div className="kanban">{statuses.map(s=><Column key={s} status={s} issues={issues.filter(i=>i.status===s)} onIssue={setModal}/>)}</div></DndContext> :
         <div className="table-wrap"><table><thead><tr><th>Issue</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th></tr></thead><tbody>{issues.map(i=><tr key={i.id} onClick={()=>setModal(i)}><td><b>ISSUE-{i.id}</b> {i.title}</td><td>{i.issue_type}</td><td>{label(i.status)}</td><td><span className={`priority ${i.priority}`}>{i.priority}</span></td><td>{i.assignee_id||'Unassigned'}</td></tr>)}</tbody></table></div>}
-      </div>
+        </>}
+      </div>  
     </main>
     {modal && <IssueModal issue={modal.id?modal:null} projectId={Number(projectId)} onClose={()=>setModal(null)} onSaved={()=>{setModal(null);loadIssues();}}/>}
     {newProject && <div className="modal-backdrop" onMouseDown={()=>setNewProject(false)}><form className="modal small-modal" onSubmit={createProject} onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><h2>New project</h2><button type="button" className="icon-btn" onClick={()=>setNewProject(false)}>×</button></div><label>Project name<input required value={projectForm.name} onChange={e=>setProjectForm({...projectForm,name:e.target.value})}/></label><label>Project key<input required maxLength="12" placeholder="e.g. WEB" value={projectForm.key} onChange={e=>setProjectForm({...projectForm,key:e.target.value.toUpperCase()})}/></label><label>Description<textarea value={projectForm.description} onChange={e=>setProjectForm({...projectForm,description:e.target.value})}/></label><button className="primary">Create project</button></form></div>}

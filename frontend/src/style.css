@@ -71,3 +71,23 @@ body,
     grid-template-columns: repeat(5, 190px);
   }
 }
+
+/* Team Members */
+.secondary-btn{border:1px solid #e1e4ed;background:#fff;color:#555d70;border-radius:8px;padding:9px 12px;font-weight:600;font-size:12px}
+.members-panel{background:#fff;border:1px solid #eaecf2;border-radius:13px;padding:22px;margin-top:24px}
+.members-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.members-heading h2{display:flex;align-items:center;gap:9px;font:800 19px Manrope;margin:0}
+.member-list{border:1px solid #eceef3;border-radius:10px;overflow:hidden}
+.member-row{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid #eff0f4}
+.member-row:last-child{border-bottom:0}
+.member-avatar{width:36px;height:36px;flex:0 0 36px;border-radius:50%;display:grid;place-items:center;background:#eeedff;color:#5b53cf;font-weight:700}
+.member-identity{min-width:0;flex:1}.member-identity strong,.member-identity span{display:block;overflow-wrap:anywhere}
+.member-identity strong{font-size:13px}.member-identity span{font-size:11px;color:#9298a8;margin-top:3px}
+.member-row select,.add-member-fields select{width:auto;min-width:120px;padding:9px;font-size:12px}
+.remove-member{border:0;background:transparent;color:#bd5360;padding:8px;font-size:11px}
+.add-member-form{margin-top:22px;padding-top:19px;border-top:1px solid #eceef3}
+.add-member-form h3{font:700 14px Manrope;margin:0 0 12px}
+.add-member-fields{display:grid;grid-template-columns:minmax(180px,1fr) 140px auto;gap:9px;align-items:center}
+.add-member-fields input{min-width:0;font-size:12px}.form-hint{font-size:11px;margin-top:9px}
+.members-footer{display:flex;justify-content:flex-end;margin-top:20px}.success-message{color:#21845e;font-size:12px}
+@media(max-width:700px){.members-panel{padding:15px 12px}.member-row{gap:8px;flex-wrap:wrap}.member-identity{flex:1 1 calc(100% - 55px)}.member-row select{margin-left:44px}.add-member-fields{grid-template-columns:1fr}.add-member-fields select{width:100%}}
