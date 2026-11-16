@@ -1,1 +1,13 @@
-import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react'; export default defineConfig({ plugins: [react()], server: { port: 5173 } });
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  preview: {
+    host: '0.0.0.0',
+    port: 8080,
+    allowedHosts: [
+      'graceful-charisma-production-a3a41571.up.railway.app'
+    ]
+  }
+})
